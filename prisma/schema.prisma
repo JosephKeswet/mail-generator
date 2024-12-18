@@ -1,0 +1,35 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             Int      @id @default(autoincrement())
+  username       String   @unique
+  password       String   // Stored as a hashed value
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model WebhookEvent {
+  id               Int       @id @default(autoincrement()) // Primary key
+  event            String    // The type of event (e.g., 'delivery')
+  category         String    // Category of the email (e.g., 'Password reset', 'Email confirmation')
+  customVariables  Json?      // Custom variables attached to the email
+  messageId        String    // Unique identifier for the message
+  email            String    // Recipient's email address
+  eventId          String    // Unique identifier for the event
+  timestamp        BigInt    // Timestamp of the event
+  sendingStream    String    // Type of sending stream (e.g., 'transactional')
+  createdAt        DateTime  @default(now()) // Timestamp for record creation
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
