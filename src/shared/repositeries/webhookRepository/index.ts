@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { EventTypes } from 'src/shared/enums';
 import { PrismaService } from 'src/shared/prisma';
-import { IResponse, MailtrapWebhookPayload } from 'src/shared/types';
+import { IResponse } from 'src/shared/types';
 import { formatDate } from 'src/shared/utils';
 import * as winston from 'winston';
 
@@ -26,64 +27,65 @@ const logger = winston.createLogger({
 
 @Injectable()
 export class WebhookRepository {
-  constructor(private data: PrismaService) {}
+  constructor(private prismaService: PrismaService) {}
 
   async save(payload): Promise<IResponse> {
-    // Check if payload is an array
+    console.log(payload.events);
     if (!Array.isArray(payload.events)) {
-      logger.error('Payload is not an array');
-      return {
-        message: 'Payload is not an array',
-        status: 400,
-      };
+      const errorMsg = 'Payload is not an array';
+      logger.error(errorMsg);
+      return { message: errorMsg, status: 400 };
     }
 
     const errors: string[] = [];
     const savedEvents: any[] = [];
 
-    // Iterate over each event in the payload array
-    for (let i = 0; i < payload.events.length; i++) {
+    for (const [index, event] of payload.events.entries()) {
       const {
         category,
         email,
-        event,
+        event: eventType,
         event_id,
         message_id,
         sending_stream,
         timestamp,
-      } = payload.events[i]; // Access individual event
+      } = event;
 
-      // Validate if all required fields are present
       if (
         !category ||
         !email ||
-        !event ||
+        !eventType ||
         !event_id ||
         !message_id ||
         !sending_stream ||
         !timestamp
       ) {
-        const errorMsg = `Missing required fields in event at index ${i}`;
+        const errorMsg = `Missing required fields in event at index ${index}`;
         errors.push(errorMsg);
         logger.warn(errorMsg);
-        continue; // Skip this event and move to the next one
+        continue;
       }
 
-      // Handle email delivery failure (bounce event)
-      if (event === 'bounce') {
-        const errorMsg = `Email delivery failed for event at index ${i}: Bounce detected for email ${email}`;
+      const errorMessageMap = {
+        [EventTypes.bounce]: `Email delivery failed: Bounce detected for email ${email}`,
+        [EventTypes.reject]: `Email rejected: ${event.reason || 'Reason not provided'}`,
+        [EventTypes.unsubscribe]: `Email unsubscribed: ${event.reason || 'Reason not provided'}`,
+      };
+
+      if (eventType in errorMessageMap) {
+        const errorMsg = errorMessageMap[eventType];
+
         errors.push(errorMsg);
-        logger.error(errorMsg);
-        continue; // Skip this event and move to the next one
+        logger.error(`Event at index ${index}: ${errorMsg}`);
+        continue;
       }
 
       try {
-        // Save the webhook event to the database
-        const webhookEvent = await this.data.webhookEvent.create({
+        const webhookEvent = await this.prismaService.webhookEvent.create({
           data: {
             category,
             email,
-            event,
+            event: eventType,
             eventId: event_id,
             messageId: message_id,
             sendingStream: sending_stream,
@@ -93,33 +95,32 @@ export class WebhookRepository {
 
         savedEvents.push(webhookEvent);
         logger.info(
-          `Webhook event saved successfully for email ${email} at index ${i}`,
+          `Webhook event saved successfully for email ${email} at index ${index}`,
         );
       } catch (err) {
-        const errorMsg = `Error saving webhook event at index ${i}: ${err.message}`;
+        const errorMsg = `Error saving webhook event at index ${index}: ${err.message}`;
+
         errors.push(errorMsg);
-        logger.error(errorMsg); // Log the error
+        logger.error(errorMsg);
       }
     }
 
-    // Return response based on success or failure
+    const status = errors.length > 0 ? 500 : 200;
+    const message =
+      errors.length > 0
+        ? 'There were errors processing some of the events'
+        : 'All webhook events saved successfully';
+
     if (errors.length > 0) {
-      logger.error('There were errors processing some of the events');
-      return {
-        message: 'There were errors processing some of the events',
-        status: 500,
-        data: {
-          errors,
-          savedEvents,
-        },
-      };
+      logger.error(message);
+    } else {
+      logger.info(message);
     }
 
-    logger.info('All webhook events saved successfully');
     return {
-      message: 'All webhook events saved successfully',
-      status: 200,
-      data: savedEvents,
+      message,
+      status,
+      data: errors.length > 0 ? { errors, savedEvents } : savedEvents,
     };
   }
 }

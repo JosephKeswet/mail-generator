@@ -13,6 +13,19 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+class Attachment {
+  @IsNotEmpty()
+  @IsString()
+  filename: string;
+
+  @IsNotEmpty()
+  content: Buffer | string;
+
+  @IsOptional()
+  @IsString()
+  contentType?: string;
+}
+
 export class SendEmailDto {
   @IsNotEmpty()
   subject: string;
@@ -27,6 +40,16 @@ export class SendEmailDto {
   @IsEmail()
   @IsNotEmpty()
   to: string | string[];
+
+  @IsEmail()
+  @IsNotEmpty()
+  cc: string | string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true }) // Validate each item in the array
+  @Type(() => Attachment) // Ensure that the array elements are treated as Attachment objects
+  attachments?: Attachment[];
 }
 
 // Address DTO with required address field
@@ -42,33 +65,33 @@ class Address {
 }
 
 // Attachment DTO
-class Attachment {
-  @IsBase64()
-  @IsString()
-  content: string;
+// class Attachment {
+//   @IsBase64()
+//   @IsString()
+//   content: string;
 
-  @IsString()
-  type: string;
+//   @IsString()
+//   type: string;
 
-  @IsString()
-  filename: string;
+//   @IsString()
+//   filename: string;
 
-  @IsOptional()
-  @IsIn(['inline', 'attachment'])
-  disposition: 'inline' | 'attachment' = 'attachment';
+//   @IsOptional()
+//   @IsIn(['inline', 'attachment'])
+//   disposition: 'inline' | 'attachment' = 'attachment';
 
-  @IsOptional()
-  @IsString()
-  content_id?: string;
+//   @IsOptional()
+//   @IsString()
+//   content_id?: string;
 
-  @IsOptional()
-  @IsObject()
-  headers?: Record<string, string>;
+//   @IsOptional()
+//   @IsObject()
+//   headers?: Record<string, string>;
 
-  @IsOptional()
-  @IsObject()
-  custom_variables?: Record<string, string>;
-}
+//   @IsOptional()
+//   @IsObject()
+//   custom_variables?: Record<string, string>;
+// }
 
 // BulkEmail DTO
 export class BulkEmailDto {

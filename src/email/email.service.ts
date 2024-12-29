@@ -1,20 +1,27 @@
 // email.service.ts
 
-import { ISendMailOptions, MailerService } from '@nestjs-modules/mailer';
+import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { BulkEmailDto, SendEmailDto } from 'src/shared/dto/email';
-import { IResponse } from 'src/shared/types';
+import { BulkEmailRepository } from 'src/shared/repositeries/bulkEmailRepository';
+import { MailtrapEmailTransport } from 'src/shared/transport/bulkEmailTransport';
+import { IResponse, ISendMailOptions } from 'src/shared/types';
 
 @Injectable()
 export class EmailService {
-  constructor(private mailService: MailerService) {}
+  constructor(
+    private mailService: MailerService,
+    private bulkEmailRepository: BulkEmailRepository,
+  ) {}
 
   async sendEmail({
     from,
     message: text,
     subject,
     to,
+    attachments,
+    cc,
   }: SendEmailDto): Promise<IResponse> {
     try {
       // If `to` is an array, loop over each recipient and send the email one by one
@@ -25,6 +32,8 @@ export class EmailService {
             to: recipient,
             subject,
             text,
+            attachments,
+            cc,
           };
           await this.mailService.sendMail(mailOptions); // Send email to the current recipient
         }
@@ -35,6 +44,8 @@ export class EmailService {
           to,
           subject,
           text,
+          attachments,
+          cc,
         };
         await this.mailService.sendMail(mailOptions);
       }
@@ -49,17 +60,12 @@ export class EmailService {
     }
   }
 
-  async sendBulkEmails(payload: ISendMailOptions): Promise<IResponse> {
-    try {
-      const mailOptions: ISendMailOptions = payload;
-      await this.mailService.sendMail(mailOptions); // Send email to all recipients in the payload
-      return {
-        message: 'Bulk emails sent successfully',
-        status: 200,
-      };
-    } catch (error) {
-      console.error('Error sending bulk emails:', error);
-      throw error;
-    }
+  async sendBulkEmails(bulkEmailDto: ISendMailOptions): Promise<IResponse> {
+    // const { from, to, cc, bcc, subject, text, html, attachments } =
+    //   bulkEmailDto;
+
+    return await this.bulkEmailRepository.sendEmail(bulkEmailDto);
   }
+
+  async metrics() {}
 }

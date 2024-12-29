@@ -28,3 +28,44 @@ export interface MailtrapWebhookPayload {
 export interface WebhookHandler {
   handleWebhook(payload: MailtrapWebhookPayload): Promise<void>;
 }
+
+export interface ISendMailOptions {
+  from: string;
+  to: string | string[];
+  cc?: string | string[];
+  bcc?: string | string[];
+  subject: string;
+  text?: string;
+  html?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer | string;
+    contentType?: string;
+  }>;
+}
+
+export interface IBulkEmailResponse {
+  accepted: string[]; // List of successfully accepted email addresses
+  rejected: string[]; // List of rejected email addresses
+  ehlo: string[]; // List of EHLO server responses
+  rejectedErrors: RejectedError[]; // Array of errors for rejected emails
+  envelopeTime: number; // Time taken for the envelope phase (in ms)
+  messageTime: number; // Time taken to send the message (in ms)
+  messageSize: number; // Size of the message in bytes
+  response: string; // Response message from the server
+  envelope: Envelope; // Details of the envelope (from and to addresses)
+  messageId: string; // Unique message ID
+}
+
+export interface RejectedError {
+  code: string; // Error code
+  response: string; // Error response message
+  responseCode: number; // Response status code
+  command: string; // SMTP command that caused the error
+  recipient: string; // Email address of the rejected recipient
+}
+
+export interface Envelope {
+  from: string; // Sender's email address
+  to: string[]; // List of recipient email addresses
+}
