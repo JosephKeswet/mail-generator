@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
   Res,
   UploadedFile,
@@ -65,6 +66,12 @@ export class EmailController {
 
     const response: IResponse =
       await this.emailService.sendBulkEmails(bulkEmailDto);
+    return res.status(response.status).json(response);
+  }
+
+  @Get('metrics')
+  async getMetrics(@Res() res: Response) {
+    const response: IResponse = await this.emailService.metrics();
     return res.status(response.status).json(response);
   }
 }

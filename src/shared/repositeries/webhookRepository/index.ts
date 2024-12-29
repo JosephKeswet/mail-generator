@@ -31,6 +31,8 @@ export class WebhookRepository {
 
   async save(payload): Promise<IResponse> {
     console.log(payload.events);
+
+    // Check if the payload contains an array of events
     if (!Array.isArray(payload.events)) {
       const errorMsg = 'Payload is not an array';
       logger.error(errorMsg);
@@ -40,6 +42,7 @@ export class WebhookRepository {
     const errors: string[] = [];
     const savedEvents: any[] = [];
 
+    // Iterate over the events
     for (const [index, event] of payload.events.entries()) {
       const {
         category,
@@ -51,6 +54,7 @@ export class WebhookRepository {
         timestamp,
       } = event;
 
+      // Check for missing required fields
       if (
         !category ||
         !email ||
@@ -63,9 +67,9 @@ export class WebhookRepository {
         const errorMsg = `Missing required fields in event at index ${index}`;
         errors.push(errorMsg);
         logger.warn(errorMsg);
-        continue;
       }
 
+      // Event-specific error messages (this is just for logging
       const errorMessageMap = {
         [EventTypes.bounce]: `Email delivery failed: Bounce detected for email ${email}`,
         [EventTypes.reject]: `Email rejected: ${event.reason || 'Reason not provided'}`,
@@ -74,13 +78,12 @@ export class WebhookRepository {
 
       if (eventType in errorMessageMap) {
         const errorMsg = errorMessageMap[eventType];
-
         errors.push(errorMsg);
         logger.error(`Event at index ${index}: ${errorMsg}`);
-        continue;
       }
 
       try {
+        // Save the event to the database regardless of the event type
         const webhookEvent = await this.prismaService.webhookEvent.create({
           data: {
             category,
@@ -98,29 +101,35 @@ export class WebhookRepository {
           `Webhook event saved successfully for email ${email} at index ${index}`,
         );
       } catch (err) {
+        // Log error if unable to save the event
         const errorMsg = `Error saving webhook event at index ${index}: ${err.message}`;
-
         errors.push(errorMsg);
         logger.error(errorMsg);
       }
     }
 
+    // Determine the response status based on whether there were any errors
     const status = errors.length > 0 ? 500 : 200;
     const message =
       errors.length > 0
         ? 'There were errors processing some of the events'
         : 'All webhook events saved successfully';
 
+    // Log the final status
     if (errors.length > 0) {
       logger.error(message);
     } else {
       logger.info(message);
     }
 
+    // Return a response with the errors (if any) and the saved events
     return {
       message,
       status,
-      data: errors.length > 0 ? { errors, savedEvents } : savedEvents,
+      data: {
+        errors,
+        savedEvents,
+      },
     };
   }
 }

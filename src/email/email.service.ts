@@ -4,6 +4,8 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { BulkEmailDto, SendEmailDto } from 'src/shared/dto/email';
+import { EventTypes } from 'src/shared/enums';
+import { PrismaService } from 'src/shared/prisma';
 import { BulkEmailRepository } from 'src/shared/repositeries/bulkEmailRepository';
 import { MailtrapEmailTransport } from 'src/shared/transport/bulkEmailTransport';
 import { IResponse, ISendMailOptions } from 'src/shared/types';
@@ -13,6 +15,7 @@ export class EmailService {
   constructor(
     private mailService: MailerService,
     private bulkEmailRepository: BulkEmailRepository,
+    private data: PrismaService,
   ) {}
 
   async sendEmail({
@@ -67,5 +70,49 @@ export class EmailService {
     return await this.bulkEmailRepository.sendEmail(bulkEmailDto);
   }
 
-  async metrics() {}
+  async metrics() {
+    try {
+      const deliveryEvent = await this.data.webhookEvent.count({
+        where: {
+          event: EventTypes.delivery,
+        },
+      });
+      const openEvent = await this.data.webhookEvent.count({
+        where: {
+          event: EventTypes.open,
+        },
+      });
+      const rejectEvent = await this.data.webhookEvent.count({
+        where: {
+          event: EventTypes.reject,
+        },
+      });
+
+      const unsubscribeEvent = await this.data.webhookEvent.count({
+        where: {
+          event: EventTypes.unsubscribe,
+        },
+      });
+      const bounceEvent = await this.data.webhookEvent.count({
+        where: {
+          event: EventTypes.bounce,
+        },
+      });
+
+      return {
+        message: 'Metrics fetched successfully',
+        status: 200,
+        data: {
+          deliveryEvent,
+          openEvent,
+          rejectEvent,
+          unsubscribeEvent,
+          bounceEvent,
+        },
+      };
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+      throw error;
+    }
+  }
 }
